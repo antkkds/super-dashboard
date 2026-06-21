@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super Dashboard — Infrastructure Hub</title>
+<style>
+:root {
+  --bg: #0f1117; --card: #1a1d2e; --border: #2a2d3e;
+  --text: #e4e6f0; --muted: #8888a0; --accent: #6c5ce7;
+  --green: #00d68f; --red: #ff6b6b; --yellow: #ffd93d;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.sidebar { position: fixed; left: 0; top: 0; width: 220px; height: 100vh; background: var(--card); border-right: 1px solid var(--border); padding: 20px 0; z-index: 100; overflow-y: auto; }
+.sidebar h1 { font-size: 16px; padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 10px; color: var(--accent); }
+.sidebar .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+.sidebar .status-dot.ok { background: var(--green); }
+.sidebar .status-dot.error { background: var(--red); }
+.sidebar .status-dot.loading { background: var(--yellow); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.sidebar a { display: flex; align-items: center; padding: 10px 20px; color: var(--muted); text-decoration: none; font-size: 13px; transition: all 0.2s; cursor: pointer; border: none; background: none; width: 100%; text-align: left; }
+.sidebar a:hover, .sidebar a.active { color: var(--text); background: rgba(108,92,231,0.1); }
+.sidebar a .badge { margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--border); }
+.main { margin-left: 220px; padding: 30px 40px; max-width: 1200px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.header h2 { font-size: 24px; }
+.header .last-update { font-size: 12px; color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 30px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: border-color 0.2s; }
+.card:hover { border-color: var(--accent); }
+.card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.card .card-title { font-size: 14px; font-weight: 600; }
+.card .card-status { font-size: 11px; padding: 3px 8px; border-radius: 6px; }
+.card .card-status.ok { background: rgba(0,214,143,0.15); color: var(--green); }
+.card .card-status.error { background: rgba(255,107,107,0.15); color: var(--red); }
+.card .card-status.loading { background: rgba(255,217,61,0.15); color: var(--yellow); }
+.card .card-metrics { font-size: 12px; color: var(--muted); line-height: 1.8; }
+.card .card-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.card .card-actions a { font-size: 11px; padding: 4px 10px; border-radius: 6px; background: var(--border); color: var(--text); text-decoration: none; transition: background 0.2s; }
+.card .card-actions a:hover { background: var(--accent); }
+.section-title { font-size: 18px; margin: 30px 0 16px; }
+.detail-panel { display: none; }
+.detail-panel.active { display: block; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+tr:hover td { background: rgba(108,92,231,0.05); }
+.loading-text { color: var(--muted); text-align: center; padding: 40px; }
+.error-text { color: var(--red); padding: 20px; text-align: center; }
+.refresh-btn { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.refresh-btn:hover { opacity: 0.85; }
+.tab-bar { display: flex; gap: 2px; margin-bottom: 20px; background: var(--card); border-radius: 10px; padding: 4px; overflow-x: auto; }
+.tab-btn { padding: 8px 16px; border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; border-radius: 8px; transition: all 0.2s; white-space: nowrap; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { background: var(--accent); color: white; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+pre { background: #0a0b12; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px; color: #a0a0c0; margin-top: 8px; max-height: 300px; overflow-y: auto; }
+.endpoint { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.endpoint .method { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.endpoint .method.GET { background: rgba(0,214,143,0.2); color: var(--green); }
+.endpoint .method.POST { background: rgba(108,92,231,0.2); color: var(--accent); }
+.endpoint .method.PUT { background: rgba(255,217,61,0.2); color: var(--yellow); }
+.endpoint .method.DELETE { background: rgba(255,107,107,0.2); color: var(--red); }
+@media (max-width: 768px) {
+  .sidebar { width: 100%; height: auto; position: relative; }
+  .main { margin-left: 0; padding: 20px; }
+  .grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+  <h1>⚡ Super Dashboard</h1>
+  <div id="service-list"></div>
+</nav>
+
+<div class="main">
+  <div class="header">
+    <h2 id="page-title">📊 Infrastructure Overview</h2>
+    <div>
+      <span class="last-update" id="last-update">Last updated: —</span>
+      <button class="refresh-btn" onclick="refreshAll()">⟳ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Overview Grid -->
+  <div id="overview-grid" class="grid"></div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar" id="tab-bar"></div>
+
+  <!-- Tab Content -->
+  <div id="tab-content-area"></div>
+</div>
+
+<script>
+const GATEWAY = "/api/gateway";
+const SERVICES = [
+  { id: "auth", name: "🔐 Auth Service", port: 3001, icon: "🔐", desc: "User auth, sessions, password reset", endpoints: ["POST /api/auth/sign-up/email", "POST /api/auth/sign-in/email", "GET /api/auth/get-session", "POST /api/auth/sign-out"] },
+  { id: "user", name: "👤 User Service", port: 3002, icon: "👤", desc: "Profiles, roles, KYC verification", endpoints: ["GET /api/users", "POST /api/users", "GET /api/users/:id", "PUT /api/users/:id", "PUT /api/users/:id/role", "POST /api/users/:id/kyc"] },
+  { id: "logistics", name: "📦 Logistics Service", port: 3003, icon: "📦", desc: "Orders, dispatch, tracking", endpoints: ["POST /api/orders", "GET /api/orders", "GET /api/orders/:id/tracking", "PUT /api/orders/:id/status", "POST /api/dispatch", "GET /api/drivers"] },
+  { id: "market", name: "📰 Market Intel", port: 3004, icon: "📰", desc: "Prices, news, trends, alerts", endpoints: ["GET /api/prices", "GET /api/prices/:symbol", "GET /api/news", "GET /api/trends", "POST /api/alerts", "GET /api/alerts"] },
+  { id: "trading", name: "💱 Trading Engine", port: 3005, icon: "💱", desc: "Bids, portfolio, trade execution", endpoints: ["POST /api/orders", "GET /api/orders", "POST /api/execute", "GET /api/portfolio/:user_id", "POST /api/portfolio/:user_id/deposit"] },
+  { id: "ml", name: "🤖 ML Forecast", port: 3006, icon: "🤖", desc: "Price forecasts, signals, models", endpoints: ["GET /api/forecast/:symbol", "GET /api/signals", "GET /api/models", "POST /api/train", "GET /api/metrics"] },
+];
+
+let healthData = null;
+
+async function fetchJson(url, opts = {}) {
+  try {
+    const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(5000) });
+    return await r.json();
+  } catch { return null; }
+}
+
+async function refreshAll() {
+  document.getElementById("last-update").textContent = "Last updated: refreshing...";
+  healthData = await fetchJson("/api/health");
+  document.getElementById("last-update").textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+  renderSidebar();
+  renderOverview();
+  renderTabBar();
+  // Activate first tab
+  const firstTab = document.querySelector(".tab-btn");
+  if (firstTab) firstTab.click();
+}
+
+function renderSidebar() {
+  const list = document.getElementById("service-list");
+  list.innerHTML = '<a onclick="showOverview()" class="active" id="nav-overview">📊 Overview</a>';
+  SERVICES.forEach(s => {
+    const svc = healthData?.services?.find(h => h.id === s.id);
+    const status = svc?.status || "loading";
+    list.innerHTML += `<a onclick="showService('${s.id}')" id="nav-${s.id}"><span class="status-dot ${status}"></span>${s.icon} ${s.name.split(" ").slice(1).join(" ")}</a>`;
+  });
+}
+
+function renderOverview() {
+  document.getElementById("page-title").textContent = "📊 Infrastructure Overview";
+  const grid = document.getElementById("overview-grid");
+  document.getElementById("tab-bar").innerHTML = "";
+  document.getElementById("tab-content-area").innerHTML = "";
+
+  grid.innerHTML = SERVICES.map(s => {
+    const svc = healthData?.services?.find(h => h.id === s.id);
+    const status = svc?.status || "loading";
+    const data = svc?.data || {};
+    const version = data?.version || "—";
+    return `<div class="card">
+      <div class="card-header">
+        <span class="card-title">${s.icon} ${s.name}</span>
+        <span class="card-status ${status}">${status === "ok" ? "● Online" : status === "error" ? "● Offline" : "○ Checking..."}</span>
+      </div>
+      <div class="card-metrics">
+        ${s.desc}<br>
+        <strong>Port:</strong> ${s.port} &middot; <strong>Version:</strong> ${version}
+      </div>
+      <div class="card-actions">
+        <a href="http://localhost:${s.port}" target="_blank">Open Service</a>
+        <a href="#" onclick="showService('${s.id}'); return false">View Details</a>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderTabBar() {
+  // Overview tab
+  const bar = document.getElementById("tab-bar");
+  bar.innerHTML = SERVICES.map(s => `<button class="tab-btn" data-tab="${s.id}" onclick="showTab('${s.id}')">${s.icon} ${s.name.split(" ").slice(1).join(" ")}</button>`).join("");
+}
+
+function showOverview() {
+  document.querySelectorAll(".sidebar a").forEach(a => a.classList.remove("active"));
+  document.getElementById("nav-overview").classList.add("active");
+  document.getElementById("overview-grid").style.display = "grid";
+  document.getElementById("tab-bar").style.display = "flex";
+  document.getElementById("tab-content-area").innerHTML = "";
+  document.getElementById("page-title").textContent = "📊 Infrastructure Overview";
+  renderTabBar();
+}
+
+async function showService(id) {
+  document.querySelectorAll(".sidebar a").forEach(a => a.classList.remove("active"));
+  document.getElementById(`nav-${id}`)?.classList.add("active");
+  document.getElementById("overview-grid").style.display = "none";
+  document.getElementById("tab-bar").style.display = "none";
+
+  const s = SERVICES.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById("page-title").textContent = `${s.icon} ${s.name}`;
+
+  const area = document.getElementById("tab-content-area");
+  area.innerHTML = `<div class="loading-text">Loading ${s.name} data...</div>`;
+
+  // Fetch service data
+  let data = {};
+  try {
+    const r = await fetch(`/api/gateway/${id}/health`);
+    const health = await r.json();
+    data = { health };
+  } catch {}
+
+  let html = `<div class="card" style="margin-bottom:16px">
+    <div class="card-header"><span class="card-title">Service Info</span>
+      <span class="card-status ${data.health ? 'ok' : 'error'}">${data.health ? '● Online' : '● Offline'}</span>
+    </div>
+    <div class="card-metrics">
+      Port: ${s.port} &middot; Version: ${data.health?.version || "—"}<br>
+      Endpoints:
+    </div>
+    <div style="margin-top:8px">${s.endpoints.map(e => {
+      const [method, ...rest] = e.split(" ");
+      return `<div class="endpoint"><span class="method ${method}">${method}</span> <span>${rest.join(" ")}</span></div>`;
+    }).join("")}</div>
+  </div>`;
+
+  // Try to fetch service-specific data
+  const fetches = [];
+
+  if (id === "auth") {
+    // Auth - basic info, nothing sensitive
+  }
+  if (id === "user") {
+    fetches.push(fetchJson(`/api/gateway/user/api/users`).then(d => data.users = d));
+  }
+  if (id === "logistics") {
+    fetches.push(fetchJson(`/api/gateway/logistics/api/orders`).then(d => data.orders = d));
+    fetches.push(fetchJson(`/api/gateway/logistics/api/drivers`).then(d => data.drivers = d));
+  }
+  if (id === "market") {
+    fetches.push(fetchJson(`/api/gateway/market/api/prices`).then(d => data.prices = d));
+    fetches.push(fetchJson(`/api/gateway/market/api/news?limit=5`).then(d => data.news = d));
+    fetches.push(fetchJson(`/api/gateway/market/api/trends`).then(d => data.trends = d));
+  }
+  if (id === "trading") {
+    fetches.push(fetchJson(`/api/gateway/trading/api/portfolio/demo-user`).then(d => data.portfolio = d));
+    fetches.push(fetchJson(`/api/gateway/trading/api/orders`).then(d => data.orders = d));
+  }
+  if (id === "ml") {
+    fetches.push(fetchJson(`/api/gateway/ml/api/models`).then(d => data.models = d));
+    fetches.push(fetchJson(`/api/gateway/ml/api/forecast/BTC?days=3`).then(d => data.forecast = d));
+    fetches.push(fetchJson(`/api/gateway/ml/api/signals?symbol=BTC`).then(d => data.signal = d));
+    fetches.push(fetchJson(`/api/gateway/ml/api/metrics`).then(d => data.metrics = d));
+  }
+
+  if (fetches.length) await Promise.allSettled(fetches);
+
+  // Render data
+  if (id === "user" && data.users) {
+    const list = data.users?.users || data.users?.data || [];
+    html += `<div class="card"><div class="card-header"><span class="card-title">Users</span></div>
+    <table><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th></tr>
+    ${Array.isArray(list) ? list.slice(0,10).map(u => `<tr><td>${u.id || u.user_id}</td><td>${u.name}</td><td>${u.email}</td><td>${u.role || "—"}</td></tr>`).join("") : "<tr><td colspan='4'>No users</td></tr>"}
+    </table></div>`;
+  }
+
+  if (id === "logistics") {
+    if (data.orders) {
+      const orders = data.orders?.orders || data.orders?.data || [];
+      html += `<div class="card"><div class="card-header"><span class="card-title">Orders</span></div>
+      <table><tr><th>ID</th><th>Type</th><th>Status</th><th>Pickup</th><th>Dropoff</th></tr>
+      ${Array.isArray(orders) ? orders.slice(0,10).map(o => `<tr><td>${o.id}</td><td>${o.type || "—"}</td><td>${o.status}</td><td>${o.pickup_address || "—"}</td><td>${o.dropoff_address || "—"}</td></tr>`).join("") : "<tr><td colspan='5'>No orders</td></tr>"}
+      </table></div>`;
+    }
+    if (data.drivers) {
+      const drivers = data.drivers?.drivers || data.drivers?.data || [];
+      html += `<div class="card"><div class="card-header"><span class="card-title">Drivers</span></div>
+      <table><tr><th>ID</th><th>Name</th><th>Vehicle</th><th>Status</th></tr>
+      ${Array.isArray(drivers) ? drivers.slice(0,5).map(d => `<tr><td>${d.id}</td><td>${d.name}</td><td>${d.vehicle_type || "—"}</td><td>${d.status}</td></tr>`).join("") : "<tr><td colspan='4'>No drivers</td></tr>"}
+      </table></div>`;
+    }
+  }
+
+  if (id === "market" && data.prices) {
+    const symbols = data.prices?.symbols || data.prices?.data || [];
+    html += `<div class="card"><div class="card-header"><span class="card-title">Market Prices</span></div>
+    <table><tr><th>Symbol</th><th>Price</th><th>24h Change</th><th>Volume</th></tr>
+    ${Array.isArray(symbols) ? symbols.slice(0,15).map(s => `<tr><td><strong>${s.symbol}</strong></td><td>$${typeof s.price === 'number' ? s.price.toFixed(2) : s.price}</td><td style="color:${(s.change_24h||0) >= 0 ? 'var(--green)' : 'var(--red)'}">${s.change_24h?.toFixed(2)}%</td><td>${s.volume?.toLocaleString() || "—"}</td></tr>`).join("") : "<tr><td colspan='4'>No price data</td></tr>"}
+    </table></div>`;
+  }
+
+  if (id === "trading" && data.portfolio) {
+    const p = data.portfolio;
+    html += `<div class="card"><div class="card-header"><span class="card-title">Portfolio (${p.user_id})</span></div>
+    <div class="card-metrics">Cash: <strong>$${p.cash_balance?.toLocaleString()}</strong> &middot; Total: <strong>$${p.total_value?.toLocaleString()}</strong></div>
+    <div style="margin-top:12px"><strong>Positions:</strong></div>
+    ${Array.isArray(p.positions) && p.positions.length ? `<table><tr><th>Symbol</th><th>Qty</th><th>Avg Price</th><th>Value</th><th>P&L</th></tr>${p.positions.map(pos => `<tr><td>${pos.symbol}</td><td>${pos.quantity}</td><td>$${pos.avg_price}</td><td>$${pos.current_value}</td><td style="color:${(pos.pnl||0) >= 0 ? 'var(--green)' : 'var(--red)'}">${pos.pnl}</td></tr>`).join("")}</table>` : "<div style='color:var(--muted);padding:12px'>No open positions</div>"}
+    </div>`;
+  }
+
+  if (id === "ml") {
+    if (data.models) {
+      html += `<div class="card"><div class="card-header"><span class="card-title">ML Models</span></div>
+      <table><tr><th>Model</th><th>Status</th><th>R² Score</th><th>Data Points</th></tr>
+      ${Array.isArray(data.models) ? data.models.map(m => `<tr><td>${m.name}</td><td><span class="card-status ${m.status === 'ready' ? 'ok' : 'loading'}">${m.status}</span></td><td>${m.accuracy?.r2_score || m.r2_score || "—"}</td><td>${m.data_points || "—"}</td></tr>`).join("") : "<tr><td colspan='4'>No models</td></tr>"}
+      </table></div>`;
+    }
+    if (data.forecast) {
+      html += `<div class="card"><div class="card-header"><span class="card-title">BTC Forecast (${data.forecast.model_used})</span></div>
+      <div class="card-metrics">Current Price: <strong>$${data.forecast.current_price?.toFixed(2)}</strong></div>
+      <table><tr><th>Date</th><th>Predicted</th><th>Range</th></tr>
+      ${Array.isArray(data.forecast.forecast) ? data.forecast.forecast.map(f => `<tr><td>${f.date}</td><td>$${f.predicted_price?.toFixed(2)}</td><td>$${f.confidence_lower?.toFixed(2)} – $${f.confidence_upper?.toFixed(2)}</td></tr>`).join("") : ""}
+      </table></div>`;
+    }
+    if (data.signal) {
+      const sig = data.signal;
+      html += `<div class="card"><div class="card-header"><span class="card-title">Signal: ${sig.symbol}</span>
+        <span class="card-status ${sig.signal === 'buy' ? 'ok' : sig.signal === 'sell' ? 'error' : ''}" style="font-size:16px">${sig.signal === 'buy' ? '🟢 BUY' : sig.signal === 'sell' ? '🔴 SELL' : '🟡 HOLD'}</span>
+      </div>
+      <div class="card-metrics">Confidence: ${(sig.confidence * 100).toFixed(0)}% &middot; ${sig.reason}</div></div>`;
+    }
+    if (data.metrics) {
+      html += `<div class="card"><div class="card-header"><span class="card-title">Model Metrics</span></div>
+      <table><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>MAPE</th></tr>
+      ${Array.isArray(data.metrics.models) ? data.metrics.models.map(m => `<tr><td>${m.name}</td><td>${m.mae}</td><td>${m.rmse}</td><td>${m.mape}%</td></tr>`).join("") : ""}
+      </table></div>`;
+    }
+  }
+
+  area.innerHTML = html;
+}
+
+function showTab(id) {
+  showService(id);
+}
+
+// Initial load
+refreshAll();
+setInterval(refreshAll, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "super-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node node_modules/tsx/dist/cli.mjs src/index.ts",
+    "build": "node node_modules/.bin/tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/cors": "^2.8.19",
+    "@types/node": "^26.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "5.7"
+  }
+}
